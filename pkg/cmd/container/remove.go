@@ -274,8 +274,18 @@ func RemoveContainer(ctx context.Context, c containerd.Container, globalOptions 
 		if err == nil {
 			<-es
 		}
-	case containerd.Created, containerd.Stopped:
-		// Created and stopped containers always get removed
+	case containerd.Created:
+		// TODO(Iceber): Since `containerd.WithProcessKill` blocks the killing of tasks with PID 0,
+		// remove the judgment and break when it is compatible with the tasks.
+		if task.Pid() == 0 {
+			// Created tasks with PID 0 always get removed.
+			// https://github.com/containerd/containerd/issues/7357
+			// Delete the task, without forcing kill
+			_, err = task.Delete(ctx)
+			return err
+		}
+	case containerd.Stopped:
+		// Stopped containers always get removed
 		// Delete the task, without forcing kill
 		_, err = task.Delete(ctx)
 		return err
